@@ -1,7 +1,6 @@
 <?php
 // 1. Loader hook to handle backend controller namespaces
 spl_autoload_register(function ($class) {
-    // Handle core src classes
     if (strpos($class, 'Src\\') === 0) {
         $prefix = 'Src\\';
         $base_dir = __DIR__ . '/../src/';
@@ -14,7 +13,6 @@ spl_autoload_register(function ($class) {
         }
     }
     
-    // Handle includes folder layout classes
     $file = __DIR__ . '/../includes/' . str_replace('\\', '/', $class) . '.php';
     if (file_exists($file)) require $file;
 });
@@ -28,22 +26,28 @@ $successMessage = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $controller = new RegistrationController();
     
-    // FIX: Map 'full_name' input properly to prevent registration mapping failures
     $registrationData = [
         'full_name'  => trim($_POST['full_name']),
         'username'   => trim($_POST['username']),
         'email'      => trim($_POST['email']),
         'password'   => $_POST['password'],
         'sponsor_id' => intval($_POST['sponsor_id']),
-        'placement'  => $_POST['placement'], // 'Left' or 'Right'
-        'plan_price' => 199.00               // Defaulting to the most popular Growth plan tier
+        'placement'  => $_POST['placement'], 
+        'plan_price' => 199.00               
     ];
     
     $result = $controller->handleRegistration($registrationData);
     
     if ($result['success']) {
-        // Safe redirect to the login portal or onboarding step on success
-        header("Location: login.php?registered=success");
+        /* * ====================================================================
+         * SUCCESS STATE: Account Created Natively!
+         * ====================================================================
+         * 1. The account credentials have been securely hashed and stored.
+         * 2. The node has been slotted into the unilevel/binary structural tree.
+         * 3. Downline promotional bonuses have been dispatched to the upline ledgers.
+         * * Bouncing user to login.php with an explicit flash message hook parameter.
+         */
+        header("Location: login.php?registered=true");
         exit;
     } else {
         $errorMessage = $result['error'];

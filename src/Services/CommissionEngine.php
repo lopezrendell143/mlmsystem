@@ -1,7 +1,6 @@
 <?php
 namespace Src\Services;
 
-use Src\Database\Connection;
 use Exception;
 
 class CommissionEngine {
@@ -10,7 +9,14 @@ class CommissionEngine {
 
     // Injecting our TreeService into the commission rules processor
     public function __construct(TreeService $treeService) {
-        $this->db = Connection::getInstance()->getConnection();
+        // Pull the live global PDO connection instance from your configuration path
+        global $pdo;
+        
+        if (!isset($pdo)) {
+            require_once __DIR__ . '/../../config/database.php';
+        }
+        
+        $this->db = $pdo;
         $this->treeService = $treeService;
     }
 
@@ -49,10 +55,10 @@ class CommissionEngine {
             VALUES (:user_id, :amount, :type, :description)
         ");
         $stmt->execute([
-            'user_id'     => $userId,
-            'amount'      => $amount,
-            'type'        => $type,
-            'description' => $description
+            ':user_id'     => $userId,
+            ':amount'      => $amount,
+            ':type'        => $type,
+            ':description' => $description
         ]);
     }
 }

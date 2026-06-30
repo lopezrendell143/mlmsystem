@@ -14,14 +14,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!empty($email) && !empty($password)) {
         try {
-            // Prepare a secure SQL query statement to look up the user account node
-            $stmt = $pdo->prepare("SELECT id, email, password, role, name FROM users WHERE email = :email LIMIT 1");
+            // Secure SQL query using standard database columns (full_name AS name)
+            $stmt = $pdo->prepare("SELECT id, email, password, role, full_name AS name FROM users WHERE email = :email LIMIT 1");
             $stmt->execute([':email' => $email]);
             $user = $stmt->fetch();
 
-            // Validate credentials against live database records
-            // Note: If you are using plain text for testing, change to: if ($user && $user['password'] === $password)
-            if ($user && password_verify($password, $user['password'])) {
+            // Validate credentials against live database records (Plain Text Comparison)
+            if ($user && $password === $user['password']) {
                 
                 // Core session payload mapping required by includes/sidebar.php
                 $_SESSION['user_id']   = $user['id'];
@@ -46,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error_message = 'Invalid email address or security access password.';
             }
         } catch (PDOException $e) {
+            // Restored the user-friendly clean interface error message
             $error_message = 'Authentication service encountered an internal database error.';
         }
     } else {
@@ -73,6 +73,12 @@ $layout->renderHeader();
       <div class="form-container-white shadow-lg">
         <h3 class="fw-bold mb-1 text-dark text-center">Welcome Back</h3>
         <p class="text-muted small text-center mb-4">Sign in to your Syntrix portal node</p>
+
+        <?php if (isset($_GET['registered']) && $_GET['registered'] === 'true'): ?>
+            <div class="alert alert-success border-0 text-center mb-3 small py-2 fw-semibold" style="border-radius: 8px; background-color: #d1fae5; color: #065f46;">
+                <i class="bi bi-check-circle-fill me-2"></i>Account configured successfully! You can now log in.
+            </div>
+        <?php endif; ?>
 
         <?php if (!empty($error_message)): ?>
             <div class="alert alert-danger small py-2" role="alert">

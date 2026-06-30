@@ -1,30 +1,40 @@
 <?php
 namespace Src\Services;
 
-use Src\Database\Connection;
 use PDO;
 
 class TreeService {
     private $db;
 
     public function __construct() {
-        $this->db = Connection::getInstance()->getConnection();
+        // Pull the live global PDO connection instance from your configuration path
+        global $pdo;
+        
+        if (!isset($pdo)) {
+            require_once __DIR__ . '/../../config/database.php';
+        }
+        
+        $this->db = $pdo;
     }
 
-    // Safely puts a user into their chosen Left or Right leg position
+    /**
+     * Safely puts a user into their chosen Left or Right leg position
+     */
     public function placeNode($userId, $parentId, $position) {
         $stmt = $this->db->prepare("
             INSERT INTO network_tree (user_id, parent_id, position) 
             VALUES (:user_id, :parent_id, :position)
         ");
         return $stmt->execute([
-            'user_id'   => $userId,
-            'parent_id' => $parentId,
-            'position'  => $position
+            ':user_id'   => $userId,
+            ':parent_id' => $parentId,
+            ':position'  => $position
         ]);
     }
 
-    // Traverses the structural genealogy upwards to find all active uplines
+    /**
+     * Traverses the structural genealogy upwards to find all active uplines
+     */
     public function getAncestors($userId) {
         $sql = "
             WITH RECURSIVE Upline AS (
@@ -38,7 +48,7 @@ class TreeService {
             SELECT * FROM Upline WHERE parent_id IS NOT NULL
         ";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['user_id' => $userId]);
+        $stmt->execute([':user_id' => $userId]);
         return $stmt->fetchAll();
     }
 }
