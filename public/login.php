@@ -71,7 +71,7 @@ $layout->renderHeader();
     <div class="col-md-6 col-lg-5">
       
       <div class="form-container-white shadow-lg">
-        <h3 class="fw-bold mb-1 text-dark text-center">Welcome Back</h3>
+        <h3 class="fw-bold mb-1 text-dark text-center">Welcome</h3>
         <p class="text-muted small text-center mb-4">Sign in to your Syntrix portal node</p>
 
         <?php if (isset($_GET['registered']) && $_GET['registered'] === 'true'): ?>
