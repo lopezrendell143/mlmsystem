@@ -7,6 +7,32 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'Staff') {
     exit;
 }
 
+// 1. DATABASE CONNECTIVITY MAPPER
+require_once __DIR__ . '/../../config/database.php';
+
+// Initialize container variables for live metrics and data pools
+$pendingList = [];
+$awaitingCount = 0;
+
+try {
+    // Fetch count of all profiles currently awaiting processing
+    $countStmt = $pdo->query("SELECT COUNT(*) FROM kyc_reviews WHERE status = 'Pending'");
+    $awaitingCount = $countStmt->fetchColumn();
+
+    // Ingest all pending validation records matching pipeline specifications
+    $sql = "SELECT id, user_id, user_fullname, user_email, credential_type, submitted_file, created_at 
+            FROM kyc_reviews 
+            WHERE status = 'Pending' 
+            ORDER BY created_at DESC";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute();
+    $pendingList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // Graceful fallback to prevent crashes if migrations/tables are still initializing
+    $pendingList = [];
+    $awaitingCount = 0;
+}
+
 // Active page state for highlighting "Member Verification" in your staff sidebar
 $activePage = 'member_verification';
 ?>
@@ -24,16 +50,32 @@ $activePage = 'member_verification';
     .card-dark { background-color: #081229; border: 1px solid #1e293b; border-radius: 12px; }
     
     .form-control-dark {
-      background-color: #0f172a;
-      border: 1px solid #334155;
-      color: #ffffff;
+      background-color: #0f172a !important;
+      border: 1px solid #334155 !important;
+      color: #ffffff !important;
+    }
+    .form-control-dark::placeholder {
+      color: #64748b !important;
+    }
+    .form-control-dark:focus {
+      background-color: #0f172a !important;
+      border-color: #0ea5e9 !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 0 0.25rem rgba(14, 165, 233, 0.15) !important;
     }
     
     /* High-contrast dark data tables */
     .table-custom { color: #ffffff; border-color: #1e293b; vertical-align: middle; }
     .table-custom thead { background-color: #0f172a; color: #94a3b8; }
+    
+    /* Force every row table cell to render text clearly against the dark background grid */
+    .table-custom tbody tr td { 
+      background-color: #081229 !important; 
+      color: #ffffff !important; 
+      border-bottom: 1px solid #1e293b !important;
+    }
     .table-custom tbody tr { border-bottom: 1px solid #1e293b; transition: background 0.15s; }
-    .table-custom tbody tr:hover { background-color: rgba(30, 41, 59, 0.5); }
+    .table-custom tbody tr:hover td { background-color: rgba(30, 41, 59, 0.5) !important; }
     
     /* Document preview node placeholder cards */
     .document-preview-node {
@@ -64,18 +106,18 @@ $activePage = 'member_verification';
 
     <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
       
-      <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom border-secondary">
+      <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom border-secondary" style="border-color: #1e293b !important;">
         <div>
           <h1 class="h3 fw-bold text-white mb-0">Identity & KYC Verification Desk</h1>
           <p class="text-muted small mb-0">Review submitted government credentials, audit identity validation parameters, and approve network privileges.</p>
         </div>
-        <span class="badge bg-warning text-dark fw-bold px-3 py-2">32 Profiles Awaiting Review</span>
+        <span class="badge bg-warning text-dark fw-bold px-3 py-2"><?php echo $awaitingCount; ?> Profiles Awaiting Review</span>
       </div>
 
       <div class="card-dark p-4 shadow-lg">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <h5 class="fw-bold mb-0 text-white-50"><i class="bi bi-shield-check me-2 text-info"></i>Pending Document Registry</h5>
-          <input type="text" class="form-control form-control-dark py-1 px-3 style-placeholder" placeholder="Filter by User ID or Name..." style="width: 260px; font-size: 0.85rem;">
+          <input type="text" class="form-control form-control-dark py-1 px-3" placeholder="Filter by User ID or Name..." style="width: 260px; font-size: 0.85rem;">
         </div>
 
         <div class="table-responsive">
@@ -91,44 +133,44 @@ $activePage = 'member_verification';
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td class="px-3 font-monospace text-info fw-bold">STX-00241</td>
-                <td>
-                  <div class="fw-bold text-white">Alex Mercer</div>
-                  <span class="text-muted small" style="font-size: 0.7rem;">Email: alex.mercer@gmail.com</span>
-                </td>
-                <td><span class="text-light">Passport / National ID</span></td>
-                <td>
-                  <div class="document-preview-node" onclick="alert('Displaying secure raw credential node image context for STX-00241...');">
-                    <i class="bi bi-file-earmark-image text-info"></i> passport_front.jpg
-                  </div>
-                </td>
-                <td class="text-muted small">2026-06-29</td>
-                <td class="text-end px-3">
-                  <button class="btn btn-sm btn-success font-monospace fw-bold me-1 py-1" style="font-size: 0.75rem;" onclick="alert('User identity approved successfully! Notification sent to network router.');">APPROVE</button>
-                  <button class="btn btn-sm btn-outline-danger font-monospace py-1" style="font-size: 0.75rem;" onclick="alert('KYC verification rejected. Opening reason terminal...');">REJECT</button>
-                </td>
-              </tr>
-              
-              <tr>
-                <td class="px-3 font-monospace text-info fw-bold">STX-00312</td>
-                <td>
-                  <div class="fw-bold text-white">Elena Kyle</div>
-                  <span class="text-muted small" style="font-size: 0.7rem;">Email: elena.kyle@gmail.com</span>
-                </td>
-                <td><span class="text-light">Driver's License</span></td>
-                <td>
-                  <div class="document-preview-node" onclick="alert('Displaying secure raw credential node image context for STX-00312...');">
-                    <i class="bi bi-file-earmark-image text-info"></i> license_scan.pdf
-                  </div>
-                </td>
-                <td class="text-muted small">2026-06-30</td>
-                <td class="text-end px-3">
-                  <button class="btn btn-sm btn-success font-monospace fw-bold me-1 py-1" style="font-size: 0.75rem;" onclick="alert('User identity approved successfully! Notification sent to network router.');">APPROVE</button>
-                  <button class="btn btn-sm btn-outline-danger font-monospace py-1" style="font-size: 0.75rem;" onclick="alert('KYC verification rejected. Opening reason terminal...');">REJECT</button>
-                </td>
-              </tr>
-            </tbody>
+  <?php if (count($pendingList) > 0): ?>
+    <?php foreach ($pendingList as $row): ?>
+      <tr>
+        <td class="px-3 font-monospace text-info fw-bold">STX-<?php echo htmlspecialchars(str_pad($row['user_id'], 5, '0', STR_PAD_LEFT)); ?></td>
+        <td>
+          <div class="fw-bold text-white"><?php echo htmlspecialchars($row['user_fullname']); ?></div>
+          <span class="text-muted small" style="font-size: 0.7rem;">Email: <?php echo htmlspecialchars($row['user_email']); ?></span>
+        </td>
+        <td><span class="text-light"><?php echo htmlspecialchars($row['credential_type']); ?></span></td>
+        <td>
+          <div class="document-preview-node" onclick="alert('Displaying secure raw credential node image context for STX-<?php echo htmlspecialchars($row['user_id']); ?>...');">
+            <i class="bi bi-file-earmark-image text-info"></i> <?php echo htmlspecialchars($row['submitted_file']); ?>
+          </div>
+        </td>
+        <td class="text-muted small"><?php echo htmlspecialchars(date('Y-m-d', strtotime($row['created_at']))); ?></td>
+        <td class="text-end px-3">
+          <form action="verify_action.php" method="POST" class="d-inline">
+            <input type="hidden" name="kyc_id" value="<?php echo $row['id']; ?>">
+            <input type="hidden" name="status_action" value="Approved">
+            <button type="submit" class="btn btn-sm btn-success font-monospace fw-bold me-1 py-1" style="font-size: 0.75rem;">APPROVE</button>
+          </form>
+          
+          <form action="verify_action.php" method="POST" class="d-inline">
+            <input type="hidden" name="kyc_id" value="<?php echo $row['id']; ?>">
+            <input type="hidden" name="status_action" value="Rejected">
+            <button type="submit" class="btn btn-sm btn-outline-danger font-monospace py-1" style="font-size: 0.75rem;">REJECT</button>
+          </form>
+        </td>
+      </tr>
+    <?php endforeach; ?>
+  <?php else: ?>
+    <tr>
+      <td colspan="6" class="text-center py-4 font-monospace text-muted">
+        <i class="bi bi-folder2-open me-2"></i>No pending verification submissions found inside the queue registry.
+      </td>
+    </tr>
+  <?php endif; ?>
+</tbody>
           </table>
         </div>
       </div>

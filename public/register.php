@@ -21,17 +21,41 @@ use Src\Controllers\RegistrationController;
 
 $errorMessage = '';
 $successMessage = '';
+$sponsorName = ''; 
+
+// DYNAMIC SPONSOR LOOKUP FOR REF LINKS
+if (isset($_GET['sponsor_id']) && intval($_GET['sponsor_id']) > 0) {
+    try {
+        require_once __DIR__ . '/../config/database.php';
+        $searchSponsorId = intval($_GET['sponsor_id']);
+        
+        $sponsorSql = "SELECT full_name FROM users WHERE id = :id LIMIT 1";
+        $sponsorStmt = $pdo->prepare($sponsorSql);
+        $sponsorStmt->execute(['id' => $searchSponsorId]);
+        $sponsorRow = $sponsorStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($sponsorRow) {
+            $sponsorName = $sponsorRow['full_name'];
+        } else {
+            $sponsorName = "Unknown Sponsor ID";
+        }
+    } catch (Exception $e) {
+        $sponsorName = "Sponsor System Error";
+    }
+}
 
 // 2. Form submission trigger
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $controller = new RegistrationController();
     
+    // FIXED: parent_id is mapped to sponsor_id on direct web registration links to ensure automated tree node assignment
     $registrationData = [
         'full_name'  => trim($_POST['full_name']),
         'username'   => trim($_POST['username']),
         'email'      => trim($_POST['email']),
         'password'   => $_POST['password'],
         'sponsor_id' => intval($_POST['sponsor_id']),
+        'parent_id'  => intval($_POST['sponsor_id']), // Maps directly to tree node hierarchy placement
         'placement'  => $_POST['placement'], 
         'plan_price' => 199.00               
     ];
@@ -39,14 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = $controller->handleRegistration($registrationData);
     
     if ($result['success']) {
-        /* * ====================================================================
-         * SUCCESS STATE: Account Created Natively!
-         * ====================================================================
-         * 1. The account credentials have been securely hashed and stored.
-         * 2. The node has been slotted into the unilevel/binary structural tree.
-         * 3. Downline promotional bonuses have been dispatched to the upline ledgers.
-         * * Bouncing user to login.php with an explicit flash message hook parameter.
-         */
         header("Location: login.php?registered=true");
         exit;
     } else {
@@ -79,11 +95,11 @@ $page->renderHeader();
             <div class="row g-2 mb-4">
               <div class="col-6">
                 <label class="form-label small text-secondary mb-1">Sponsor ID</label>
-                <input type="text" name="sponsor_id" class="form-control bg-light text-center border-0 py-2 fw-semibold" placeholder="12345" required>
+                <input type="text" name="sponsor_id" class="form-control bg-light text-center border-0 py-2 fw-semibold" placeholder="12345" value="<?php echo isset($_GET['sponsor_id']) ? htmlspecialchars($_GET['sponsor_id']) : ''; ?>" <?php echo isset($_GET['sponsor_id']) ? 'readonly' : ''; ?> required>
               </div>
               <div class="col-6">
                 <label class="form-label small text-secondary mb-1">Sponsor Name</label>
-                <input type="text" class="form-control bg-light text-center border-0 py-2 text-muted" placeholder="Optional Name" readonly>
+                <input type="text" class="form-control bg-light text-center border-0 py-2 text-muted fw-semibold" placeholder="Optional Name" value="<?php echo htmlspecialchars($sponsorName); ?>" readonly>
               </div>
             </div>
 

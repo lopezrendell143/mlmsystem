@@ -26,7 +26,7 @@ $sidebarConfig = [
         'hover_color' => '#38bdf8',
         'links'       => [
             ['slug' => 'staff_dashboard', 'title' => 'Operations Hub', 'icon' => 'bi-kanban', 'url' => '/mlmsystem/public/staffdb/staff_dashboard.php'],
-            ['slug' => 'tickets', 'title' => 'Support Tickets (14)', 'icon' => 'bi-ticket-detailed', 'url' => '/mlmsystem/public/staffdb/support_tickets.php'],
+            ['slug' => 'tickets', 'title' => 'Support Tickets', 'icon' => 'bi-ticket-detailed', 'url' => '/mlmsystem/public/staffdb/support_tickets.php'],
             ['slug' => 'verification', 'title' => 'Member Verification', 'icon' => 'bi-person-check', 'url' => '/mlmsystem/public/staffdb/member_verification.php'],
             ['slug' => 'inventory', 'title' => 'Inventory Status', 'icon' => 'bi-box-seam', 'url' => '/mlmsystem/public/staffdb/inventory_status.php'],
             ['slug' => 'reports', 'title' => 'Operational Reports', 'icon' => 'bi-file-earmark-text', 'url' => '/mlmsystem/public/staffdb/operational_reports.php'],

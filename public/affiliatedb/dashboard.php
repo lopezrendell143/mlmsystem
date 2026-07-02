@@ -2,8 +2,58 @@
 session_start();
 
 if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'Affiliate') {
-    header("Location: ../login.php"); // Added ../ to go back to public/
+    header("Location: ../login.php"); 
     exit;
+}
+
+// 1. DATABASE CONNECTIVITY MAPPER
+require_once __DIR__ . '/../../config/database.php';
+
+$userId = $_SESSION['user_id'] ?? 0;
+
+// --- LIVE AFFILIATE AGGREGATIONS ENGINE ---
+try {
+    // A. Total Active Downline Count (Users recruited down the line)
+    $downlineSql = "SELECT COUNT(*) as total_downline FROM users WHERE referrer_id = :user_id OR referrer_id IN (SELECT id FROM users WHERE referrer_id = :user_id2)";
+    $downlineStmt = $pdo->prepare($downlineSql);
+    $downlineStmt->execute(['user_id' => $userId, 'user_id2' => $userId]);
+    $totalDownline = $downlineStmt->fetch(PDO::FETCH_ASSOC)['total_downline'] ?? 0;
+
+    // B. Direct Recruits Count (Users with this affiliate's ID directly as referrer)
+    $directSql = "SELECT COUNT(*) as direct_recruits FROM users WHERE referrer_id = :user_id";
+    $directStmt = $pdo->prepare($directSql);
+    $directStmt->execute(['user_id' => $userId]);
+    $directRecruits = $directStmt->fetch(PDO::FETCH_ASSOC)['direct_recruits'] ?? 0;
+
+    // C. E-Wallet Balance and Network Group Volumes
+    // Assuming your schema holds transactional balance states inside your commissions/wallet architecture
+    $walletSql = "SELECT 
+                    COALESCE(ewallet_balance, 0.00) as ewallet,
+                    COALESCE(total_gv, 0) as gv,
+                    COALESCE(matched_leg_volume, 0) as matched_volume,
+                    COALESCE(estimated_match_bonus, 0.00) as match_bonus,
+                    COALESCE(rank_qualification, 100) as rank_percentage
+                  FROM affiliate_metrics WHERE user_id = :user_id LIMIT 1";
+    $walletStmt = $pdo->prepare($walletSql);
+    $walletStmt->execute(['user_id' => $userId]);
+    $metrics = $walletStmt->fetch(PDO::FETCH_ASSOC);
+
+    // Fallbacks if no metric line item exists yet for a new affiliate node
+    $ewalletBalance = $metrics['ewallet'] ?? 0.00;
+    $totalGV = $metrics['gv'] ?? 0;
+    $matchedLegVolume = $metrics['matched_volume'] ?? 0;
+    $estimatedMatchBonus = $metrics['match_bonus'] ?? 0.00;
+    $rankQualification = $metrics['rank_percentage'] ?? 0;
+
+} catch (PDOException $e) {
+    // High safety fallback mesh parameters
+    $totalDownline = 0;
+    $directRecruits = 0;
+    $ewalletBalance = 0.00;
+    $totalGV = 0;
+    $matchedLegVolume = 0;
+    $estimatedMatchBonus = 0.00;
+    $rankQualification = 0;
 }
 
 $activePage = 'dashboard';
@@ -41,15 +91,15 @@ $activePage = 'dashboard';
             <h5 class="fw-bold mb-3 text-white">Network Performance Summary</h5>
             <div class="d-flex justify-content-between mb-2">
               <span class="text-secondary"><i class="bi bi-people-fill me-2"></i>Total Active Downline</span>
-              <span class="fw-bold">24</span>
+              <span class="fw-bold text-white"><?php echo $totalDownline; ?></span>
             </div>
             <div class="d-flex justify-content-between mb-2">
               <span class="text-secondary"><i class="bi bi-person-plus-fill me-2"></i>Direct Recruits</span>
-              <span class="fw-bold">1</span>
+              <span class="fw-bold text-white"><?php echo $directRecruits; ?></span>
             </div>
             <div class="d-flex justify-content-between">
               <span class="text-secondary"><i class="bi bi-patch-check me-2"></i>Rank Qualification %</span>
-              <span class="fw-bold text-success">93%</span>
+              <span class="fw-bold text-success"><?php echo $rankQualification; ?>%</span>
             </div>
           </div>
         </div>
@@ -66,30 +116,30 @@ $activePage = 'dashboard';
         </div>
       </div>
 
-      <!-- Financial Statistics Metrics Row -->
+      <!-- Financial Statistics Metrics Row (Updated to Live PHP Peso Values) -->
       <div class="row g-3 mb-4">
         <div class="col-md-3">
           <div class="card card-metric p-3 shadow-sm">
             <small class="text-muted text-uppercase tracking-wider fw-bold">Total GV (Group Volume)</small>
-            <h4 class="fw-bold mt-1 mb-0">$25,000</h4>
+            <h4 class="fw-bold mt-1 mb-0">₱<?php echo number_format($totalGV); ?></h4>
           </div>
         </div>
         <div class="col-md-3">
           <div class="card card-metric p-3 shadow-sm">
             <small class="text-muted text-uppercase tracking-wider fw-bold">Matched Leg Volume</small>
-            <h4 class="fw-bold mt-1 mb-0">$12,800</h4>
+            <h4 class="fw-bold mt-1 mb-0">₱<?php echo number_format($matchedLegVolume); ?></h4>
           </div>
         </div>
         <div class="col-md-3">
           <div class="card card-metric p-3 shadow-sm">
             <small class="text-muted text-uppercase tracking-wider fw-bold">E-Wallet Balance</small>
-            <h4 class="fw-bold mt-1 mb-0 text-success">$3,450.00</h4>
+            <h4 class="fw-bold mt-1 mb-0 text-success">₱<?php echo number_format($ewalletBalance, 2); ?></h4>
           </div>
         </div>
         <div class="col-md-3">
           <div class="card card-metric p-3 shadow-sm">
             <small class="text-muted text-uppercase tracking-wider fw-bold">Estimated Match Bonus</small>
-            <h4 class="fw-bold mt-1 mb-0">$1,725.00</h4>
+            <h4 class="fw-bold mt-1 mb-0">₱<?php echo number_format($estimatedMatchBonus, 2); ?></h4>
           </div>
         </div>
       </div>
